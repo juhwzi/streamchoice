@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { RankingBars } from "./RankingBars";
+import { FollowButton } from "./FollowButton";
 import { SubmitModal } from "./SubmitModal";
 import { useLeaderFlash } from "./useLeaderFlash";
 import { useCountdown, useLiveSnapshot } from "@/lib/hooks/useLiveSnapshot";
@@ -9,7 +11,7 @@ import { formatClock } from "@/lib/poll-state";
 import type { RankingRow, SnapshotRow } from "@/lib/types";
 
 interface Props {
-  channel: { id: string; slug: string; livepixUrl: string | null };
+  channel: { id: string; slug: string; livepixUrl: string | null; ownerName: string; ownerUsername: string; ownerAvatar: string | null; followerCount: number; following: boolean };
   initial: SnapshotRow | null;
   loggedIn: boolean;
   myVote: string | null;
@@ -54,9 +56,20 @@ export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: 
 
   if (!poll) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-display text-4xl font-extrabold">/{channel.slug}</h1>
-        <p className="mt-3 text-mute">Nenhuma rodada aberta agora. Esta página atualiza sozinha quando o streamer abrir uma.</p>
+      <main className="mx-auto max-w-3xl px-4 py-6">
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-panel p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {channel.ownerAvatar ? <img src={channel.ownerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-full bg-raise font-bold">{channel.ownerName.slice(0, 1).toUpperCase()}</div>}
+            <div className="min-w-0"><Link href={`/streamer/${channel.slug}`} className="font-semibold hover:text-kick">{channel.ownerName}</Link><p className="text-sm text-mute">@{channel.ownerUsername} · {channel.followerCount} seguidores</p></div>
+          </div>
+          <FollowButton slug={channel.slug} initialFollowing={channel.following} initialFollowers={channel.followerCount} loggedIn={loggedIn} />
+        </section>
+        <section className="mt-8 rounded-2xl border border-dashed border-line bg-panel p-10 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-raise text-2xl">◷</div>
+          <h1 className="mt-4 font-display text-4xl font-extrabold">Nenhuma votação ativa</h1>
+          <p className="mt-2 text-mute">Esta página atualiza sozinha quando {channel.ownerName} abrir uma nova rodada.</p>
+          <Link href={`/streamer/${channel.slug}`} className="mt-5 inline-flex rounded-lg border border-line px-5 py-3 font-semibold">Ver feed do streamer</Link>
+        </section>
       </main>
     );
   }
@@ -67,7 +80,15 @@ export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: 
   const winner = poll.status === "completed" ? [...data.ranking].sort((a, b) => b.total_score - a.total_score)[0] : null;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 pb-28 pt-6">
+    <main className="mx-auto max-w-3xl px-4 pb-28 pt-6">
+      <section className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-panel p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {channel.ownerAvatar ? <img src={channel.ownerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-full bg-raise font-bold">{channel.ownerName.slice(0, 1).toUpperCase()}</div>}
+          <div className="min-w-0"><Link href={`/streamer/${channel.slug}`} className="font-semibold hover:text-kick">{channel.ownerName}</Link><p className="text-sm text-mute">@{channel.ownerUsername} · {channel.followerCount} seguidores</p></div>
+        </div>
+        <FollowButton slug={channel.slug} initialFollowing={channel.following} initialFollowers={channel.followerCount} loggedIn={loggedIn} />
+      </section>
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl font-extrabold leading-none">{poll.title}</h1>

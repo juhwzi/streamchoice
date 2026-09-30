@@ -11,9 +11,15 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
   const channel = await getChannelBySlug(slug);
   if (!channel || !channel.is_active) notFound();
 
-  const [session, snapshot] = await Promise.all([getSession(), getLatestSnapshot(channel.id)]);
+  const [session, snapshot, owner, followerCount] = await Promise.all([
+    getSession(),
+    getLatestSnapshot(channel.id),
+    admin().from("users").select("username, display_name, avatar_url, bio").eq("id", channel.owner_id).maybeSingle().then((r) => r.data),
+    admin().from("channel_follows").select("id", { count: "exact", head: true }).eq("channel_id", channel.id).then((r) => r.count ?? 0),
+  ]);
 
   let myVote: string | null = null;
+  let following = false;
   if (session && snapshot) {
     const { data } = await admin()
       .from("votes")
@@ -23,10 +29,14 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
       .maybeSingle();
     myVote = data?.suggestion_id ?? null;
   }
+  if (session && session.uid !== channel.owner_id) {
+    const { data } = await admin().from("channel_follows").select("id").eq("channel_id", channel.id).eq("user_id", session.uid).maybeSingle();
+    following = !!data;
+  }
 
   return (
     <ViewerRoom
-      channel={{ id: channel.id, slug: channel.kick_channel_slug, livepixUrl: channel.livepix_url }}
+      channel={{ id: channel.id, slug: channel.kick_channel_slug, livepixUrl: channel.livepix_url, ownerName: owner?.display_name || owner?.username || channel.kick_channel_slug, ownerUsername: owner?.username || channel.kick_channel_slug, ownerAvatar: owner?.avatar_url || null, followerCount, following }}
       initial={snapshot}
       loggedIn={!!session}
       myVote={myVote}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CreateChannelButton, Moderators, ObsCard, PixSettings } from "@/components/DashboardForms";
+import { CreateChannelButton, DeleteChannel, Moderators, ObsCard, PixSettings } from "@/components/DashboardForms";
 import { appUrl } from "@/lib/env";
 import { formatBRL } from "@/lib/scoring";
 import { getSession } from "@/lib/session";
@@ -26,11 +26,12 @@ export default async function Dashboard() {
   }
 
   const slug = channel.kick_channel_slug as string;
-  const [{ data: mods }, { data: snaps }, { data: lastPix }, { data: events }] = await Promise.all([
+  const [{ data: mods }, { data: snaps }, { data: lastPix }, { data: events }, { data: contributors }] = await Promise.all([
     db.from("channel_moderators").select("user_id, is_auto_synced, users(username)").eq("channel_id", channel.id),
     db.from("poll_snapshots").select("poll_id, poll_created_at, data").eq("channel_id", channel.id).order("poll_created_at", { ascending: false }).limit(10),
     db.from("paid_votes").select("id, donor_display_name, amount_paid, created_at, suggestions(title), polls!inner(channel_id)").eq("polls.channel_id", channel.id).eq("status", "confirmed").order("created_at", { ascending: false }).limit(10),
     db.from("webhook_events").select("id, outcome, amount, donor, created_at").eq("channel_id", channel.id).order("created_at", { ascending: false }).limit(8),
+    db.rpc("channel_top_contributors", { p_channel_id: channel.id, p_limit: 10 }),
   ]);
 
   const rounds = (snaps ?? []).map((s) => ({ id: s.poll_id as string, d: s.data as SnapshotData }));
@@ -45,6 +46,7 @@ export default async function Dashboard() {
         <div className="flex gap-3">
           <Link href={`/mod/${slug}`} className="rounded-lg bg-kick px-5 py-2 font-bold text-ink">Operar a live</Link>
           <Link href={`/c/${slug}`} className="rounded-lg border border-line px-5 py-2">Ver sala</Link>
+          <Link href={`/streamer/${slug}`} className="rounded-lg border border-line px-5 py-2">Ver feed público</Link>
         </div>
       </div>
 
@@ -90,6 +92,24 @@ export default async function Dashboard() {
         </table>
       </section>
 
+      <section className="rounded-xl border border-line bg-panel p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">Comunidade</p><h2 className="font-display text-3xl font-extrabold">Maiores contribuidores</h2><p className="mt-1 text-sm text-mute">Ranking por valor total de Pix confirmado nas votações deste canal.</p></div>
+          <span className="rounded-full bg-raise px-3 py-1 text-xs text-mute">Top 10</span>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[36rem] text-left text-sm">
+            <thead className="text-mute"><tr><th className="py-2">#</th><th>Contribuidor</th><th>Contribuições</th><th>Total</th><th>Última</th></tr></thead>
+            <tbody>
+              {(contributors ?? []).map((c, i) => (
+                <tr key={`${c.donor_display_name}-${i}`} className="border-t border-line"><td className="py-2 font-display text-lg font-extrabold text-kick">{i + 1}</td><td className="font-semibold">{c.donor_display_name}</td><td>{c.donation_count}</td><td className="font-semibold text-emerald">{formatBRL(Number(c.total_amount))}</td><td className="text-mute">{new Date(c.last_contribution_at).toLocaleDateString("pt-BR")}</td></tr>
+              ))}
+              {!contributors?.length && <tr><td colSpan={5} className="py-6 text-center text-mute">Ainda não há contribuições confirmadas.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <PixSettings slug={slug} livepixUrl={channel.livepix_url} hasSecret={!!channel.livepix_webhook_secret} webhookUrl={`${appUrl()}/api/webhooks/livepix?channel=${slug}`} />
         <ObsCard slug={slug} overlayUrl={`${appUrl()}/overlay/${channel.obs_token}`} />
@@ -117,6 +137,8 @@ export default async function Dashboard() {
           </ul>
         </section>
       </div>
+
+      <DeleteChannel slug={slug} />
     </main>
   );
 }

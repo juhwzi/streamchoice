@@ -105,3 +105,32 @@ export function Moderators({ slug, mods }: { slug: string; mods: { user_id: stri
     </div>
   );
 }
+
+export function DeleteChannel({ slug }: { slug: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function remove() {
+    if (busy) return;
+    const first = confirm(`Excluir a sala /${slug}?`);
+    if (!first) return;
+    const second = confirm("Essa ação é permanente e apaga rodadas, votos, snapshots, contribuições e seguidores desta sala. Continuar?");
+    if (!second) return;
+    setBusy(true);
+    setErr(null);
+    const r = await call(`/api/channels/${slug}`, "DELETE");
+    if (r.ok) router.push("/");
+    else { setBusy(false); setErr(r.msg ?? "Não foi possível excluir a sala."); }
+  }
+
+  return (
+    <section className="rounded-xl border border-red-500/30 bg-red-500/5 p-5">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-300">Zona de perigo</p>
+      <h2 className="mt-1 font-display text-2xl font-extrabold">Excluir sala</h2>
+      <p className="mt-1 text-sm text-mute">Remove permanentemente esta sala e todos os dados vinculados.</p>
+      <button onClick={() => void remove()} disabled={busy} className="mt-4 rounded-lg border border-red-500/60 px-4 py-2.5 font-semibold text-red-300 disabled:opacity-60">{busy ? "Excluindo…" : "Excluir /"}{slug}</button>
+      {err && <p className="mt-2 text-sm text-red-300">{err}</p>}
+    </section>
+  );
+}
