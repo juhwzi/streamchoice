@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { background: #0B0E0F; color: #E8EEF0; }
+body { font-family: var(--font-body), system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* Barras crescem suavemente (UI/UX §4). */
+.bar-fill { transition: width 0.4s ease-out; }
+
+@keyframes lead-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(83, 252, 24, 0); }
+  30%  { box-shadow: 0 0 0 6px rgba(83, 252, 24, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(83, 252, 24, 0); }
+}
+.lead-flash { animation: lead-flash 1.1s ease-out; }
+
+:focus-visible { outline: 2px solid #53FC18; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill { transition: none; }
+  .lead-flash { animation: none; }
+}
