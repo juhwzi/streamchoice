@@ -4,6 +4,7 @@ import Link from "next/link";
 import { RankingBars } from "./RankingBars";
 import { FollowButton } from "./FollowButton";
 import { SubmitModal } from "./SubmitModal";
+import { VerifiedBadge } from "./VerifiedBadge";
 import { useLeaderFlash } from "./useLeaderFlash";
 import { useCountdown, useLiveSnapshot } from "@/lib/hooks/useLiveSnapshot";
 import { formatBRL, pixMessage } from "@/lib/scoring";
@@ -11,7 +12,7 @@ import { formatClock } from "@/lib/poll-state";
 import type { RankingRow, SnapshotRow } from "@/lib/types";
 
 interface Props {
-  channel: { id: string; slug: string; livepixUrl: string | null; ownerName: string; ownerUsername: string; ownerAvatar: string | null; followerCount: number; following: boolean };
+  channel: { id: string; slug: string; livepixUrl: string | null; ownerName: string; ownerUsername: string; ownerAvatar: string | null; ownerVerified: boolean; followerCount: number; following: boolean };
   initial: SnapshotRow | null;
   loggedIn: boolean;
   myVote: string | null;
@@ -60,7 +61,7 @@ export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: 
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-panel p-4">
           <div className="flex min-w-0 items-center gap-3">
             {channel.ownerAvatar ? <img src={channel.ownerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-full bg-raise font-bold">{channel.ownerName.slice(0, 1).toUpperCase()}</div>}
-            <div className="min-w-0"><Link href={`/streamer/${channel.slug}`} className="font-semibold hover:text-kick">{channel.ownerName}</Link><p className="text-sm text-mute">@{channel.ownerUsername} · {channel.followerCount} seguidores</p></div>
+            <div className="min-w-0"><div className="flex items-center gap-2"><Link href={`/streamer/${channel.slug}`} className="font-semibold hover:text-kick">{channel.ownerName}</Link>{channel.ownerVerified && <VerifiedBadge />}</div><p className="text-sm text-mute">@{channel.ownerUsername} · {channel.followerCount} seguidores</p></div>
           </div>
           <FollowButton slug={channel.slug} initialFollowing={channel.following} initialFollowers={channel.followerCount} loggedIn={loggedIn} />
         </section>
@@ -84,7 +85,7 @@ export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: 
       <section className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-panel p-4">
         <div className="flex min-w-0 items-center gap-3">
           {channel.ownerAvatar ? <img src={channel.ownerAvatar} alt="" className="h-12 w-12 rounded-full object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-full bg-raise font-bold">{channel.ownerName.slice(0, 1).toUpperCase()}</div>}
-          <div className="min-w-0"><Link href={`/streamer/${channel.slug}`} className="font-semibold hover:text-kick">{channel.ownerName}</Link><p className="text-sm text-mute">@{channel.ownerUsername} · {channel.followerCount} seguidores</p></div>
+          <div className="min-w-0"><div className="flex items-center gap-2"><Link href={`/streamer/${channel.slug}`} className="font-semibold hover:text-kick">{channel.ownerName}</Link>{channel.ownerVerified && <VerifiedBadge />}</div><p className="text-sm text-mute">@{channel.ownerUsername} · {channel.followerCount} seguidores</p></div>
         </div>
         <FollowButton slug={channel.slug} initialFollowing={channel.following} initialFollowers={channel.followerCount} loggedIn={loggedIn} />
       </section>

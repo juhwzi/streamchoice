@@ -14,7 +14,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
   const [session, snapshot, owner, followerCount] = await Promise.all([
     getSession(),
     getLatestSnapshot(channel.id),
-    admin().from("users").select("username, display_name, avatar_url, bio").eq("id", channel.owner_id).maybeSingle().then((r) => r.data),
+    admin().from("users").select("username, display_name, avatar_url, bio, kick_verified").eq("id", channel.owner_id).maybeSingle().then((r) => r.data),
     admin().from("channel_follows").select("id", { count: "exact", head: true }).eq("channel_id", channel.id).then((r) => r.count ?? 0),
   ]);
 
@@ -36,7 +36,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
 
   return (
     <ViewerRoom
-      channel={{ id: channel.id, slug: channel.kick_channel_slug, livepixUrl: channel.livepix_url, ownerName: owner?.display_name || owner?.username || channel.kick_channel_slug, ownerUsername: owner?.username || channel.kick_channel_slug, ownerAvatar: owner?.avatar_url || null, followerCount, following }}
+      channel={{ id: channel.id, slug: channel.kick_channel_slug, livepixUrl: channel.livepix_url, ownerName: owner?.display_name || owner?.username || channel.kick_channel_slug, ownerUsername: owner?.username || channel.kick_channel_slug, ownerAvatar: owner?.avatar_url || null, ownerVerified: !!owner?.kick_verified, followerCount, following }}
       initial={snapshot}
       loggedIn={!!session}
       myVote={myVote}

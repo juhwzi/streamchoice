@@ -43,6 +43,11 @@ export interface KickUser {
   avatar: string | null;
 }
 
+export interface KickOwnChannel {
+  slug: string | null;
+  isVerified: boolean;
+}
+
 /** GET /public/v1/users (sem parâmetros = usuário dono do token). */
 export async function fetchKickUser(accessToken: string): Promise<KickUser> {
   const res = await fetch(`${API_BASE}/users`, {
@@ -56,17 +61,35 @@ export async function fetchKickUser(accessToken: string): Promise<KickUser> {
   return { id: String(u.user_id), name: u.name, avatar: u.profile_picture ?? null };
 }
 
-/** GET /public/v1/channels (sem parâmetros = canal do dono do token). Falha é não-fatal. */
-export async function fetchOwnChannelSlug(accessToken: string): Promise<string | null> {
+/**
+ * GET /public/v1/channels sem parâmetros retorna o canal do dono do token.
+ * O campo is_verified é persistido para refletir o selo da Kick no StreamChoice.
+ */
+export async function fetchOwnChannel(accessToken: string): Promise<KickOwnChannel> {
   try {
     const res = await fetch(`${API_BASE}/channels`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { data?: { slug?: string }[] };
-    return json.data?.[0]?.slug ?? null;
+    if (!res.ok) return { slug: null, isVerified: false };
+
+    const json = (await res.json()) as {
+      data?: Array<{
+        slug?: string;
+        is_verified?: boolean;
+      }>;
+    };
+    const channel = json.data?.[0];
+    return {
+      slug: channel?.slug ?? null,
+      isVerified: channel?.is_verified === true,
+    };
   } catch {
-    return null;
+    return { slug: null, isVerified: false };
   }
+}
+
+/** Compatibilidade com chamadas existentes. */
+export async function fetchOwnChannelSlug(accessToken: string): Promise<string | null> {
+  return (await fetchOwnChannel(accessToken)).slug;
 }

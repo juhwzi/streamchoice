@@ -2,6 +2,7 @@ export type Role = "STREAMER" | "MODERATOR" | "VIEWER";
 export type PollStatus = "collecting" | "voting" | "paused" | "completed";
 export type PaidMode = "accumulated_value" | "fixed_ticket" | "hybrid";
 export type MediaType = "movie" | "tv" | "game";
+export type LibraryStatus = "up_next" | "in_progress" | "completed";
 
 export interface PollInfo {
   id: string;
@@ -55,5 +56,30 @@ export interface SessionPayload {
   kid: string;
   name: string;
   avatar?: string | null;
-  slug?: string | null; // slug do canal Kick do usuário (obtido no login, p/ onboarding)
+  slug?: string | null;
+}
+
+export interface PublicUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  kick_verified: boolean;
+}
+
+export interface LibraryItem {
+  id: string;
+  channel_id: string;
+  source_poll_id: string;
+  external_media_id: string;
+  media_type: MediaType;
+  title: string;
+  poster_url: string | null;
+  release_year: string | null;
+  status: LibraryStatus;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
