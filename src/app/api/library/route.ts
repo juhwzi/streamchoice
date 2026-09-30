@@ -22,11 +22,14 @@ export async function PATCH(req: Request) {
   const db = admin();
   const { data: channel } = await db
     .from("channels")
-    .select("id")
+    .select("id, owner_id")
     .eq("owner_id", auth.session.uid)
     .maybeSingle();
 
   if (!channel) return fail(404, "channel_not_found", "Você ainda não tem uma sala.");
+
+  const { data: account } = await db.from("users").select("kick_verified, is_admin").eq("id", auth.session.uid).maybeSingle();
+  if (!account?.kick_verified && !account?.is_admin) return fail(403, "streamer_unverified", "A biblioteca é exclusiva de streamers verificados.");
 
   const { data, error } = await db.rpc("upsert_streamer_library", {
     p_channel_id: channel.id,

@@ -1,8 +1,9 @@
-export type Role = "STREAMER" | "MODERATOR" | "VIEWER";
+export type Role = "ADMIN" | "STREAMER" | "MODERATOR" | "VIEWER";
 export type PollStatus = "collecting" | "voting" | "paused" | "completed";
 export type PaidMode = "accumulated_value" | "fixed_ticket" | "hybrid";
 export type MediaType = "movie" | "tv" | "game";
 export type LibraryStatus = "up_next" | "in_progress" | "completed";
+export type ActivityType = "poll_created" | "poll_status" | "library_status";
 
 export interface PollInfo {
   id: string;
@@ -82,4 +83,19 @@ export interface LibraryItem {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface StreamActivity {
+  id: string;
+  channel_id: string;
+  poll_id: string | null;
+  library_id: string | null;
+  activity_type: ActivityType;
+  title: string;
+  body: string;
+  category_type: "movie" | "game" | "mixed" | null;
+  media_type: MediaType | null;
+  poster_url: string | null;
+  status: string | null;
+  created_at: string;
 }

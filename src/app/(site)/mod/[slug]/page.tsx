@@ -12,13 +12,16 @@ export const dynamic = "force-dynamic";
 export default async function ModPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const session = await getSession();
-  if (!session) redirect(`/entrar?next=${encodeURIComponent(`/mod/${slug}`)}`);
+  if (!session) {
+    redirect(`/entrar?next=${encodeURIComponent(`/mod/${slug}`)}`);
+    return null;
+  }
 
   const channel = await getChannelBySlug(slug);
   if (!channel) notFound();
   const role = await resolveRole(session.uid, channel);
   if (role === "VIEWER") {
-    return <StateCard icon="🔒" title="Acesso restrito" text={`Somente o streamer e os moderadores de /${slug} operam este painel.`} href={`/c/${slug}`} cta="Ir para a sala" />;
+    return <StateCard icon="🔒" title="Acesso restrito" text={`Somente o streamer verificado, moderadores ou um administrador podem operar este painel.`} href={`/c/${slug}`} cta="Ir para a sala" />;
   }
 
   const [snapshot, { data: secrets }] = await Promise.all([
@@ -30,7 +33,7 @@ export default async function ModPage({ params }: { params: Promise<{ slug: stri
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-3xl font-extrabold">Operação · /{slug}</h1>
+        <h1 className="font-display text-3xl font-extrabold">Operação · {slug}</h1>
         <Link href={`/c/${slug}`} className="text-sm text-mute hover:text-white">Ver como espectador</Link>
       </div>
       <ModPanel channel={{ id: channel.id, slug }} initial={snapshot} role={role} pixReady={pixReady} />

@@ -22,6 +22,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const { data: channel } = await getChannel(slug);
   if (!channel) return fail(404, "channel_not_found", "Streamer não encontrado.");
 
+  const { data: owner } = await db
+    .from("users")
+    .select("kick_verified")
+    .eq("id", channel.owner_id)
+    .maybeSingle();
+  if (!owner?.kick_verified) return fail(404, "not_streamer", "Este canal ainda não está habilitado como streamer.");
+
   const { count } = await db
     .from("channel_follows")
     .select("id", { count: "exact", head: true })
@@ -50,6 +57,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const { data: channel } = await getChannel(slug);
   if (!channel) return fail(404, "channel_not_found", "Streamer não encontrado.");
   if (channel.owner_id === s.session.uid) return fail(409, "self_follow", "Você não precisa seguir seu próprio canal.");
+
+  const { data: owner } = await admin()
+    .from("users")
+    .select("kick_verified")
+    .eq("id", channel.owner_id)
+    .maybeSingle();
+  if (!owner?.kick_verified) return fail(404, "not_streamer", "Este canal ainda não está habilitado como streamer.");
 
   const { error } = await admin()
     .from("channel_follows")

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FollowButton } from "@/components/FollowButton";
+import { ProfileHero } from "@/components/ProfileHero";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { getSession } from "@/lib/session";
 import { admin } from "@/lib/supabase/admin";
-import type { LibraryItem, SnapshotData } from "@/lib/types";
+import type { LibraryItem, StreamActivity } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -34,65 +35,45 @@ export default async function StreamerFeed({
 
   if (!channel || !channel.is_active) notFound();
 
-  const [{ data: owner }, { count: followers }, { data: snapshots }, { data: library }, session] = await Promise.all([
+  const [{ data: owner }, { count: followers }, { data: activities }, { data: library }, session] = await Promise.all([
     db.from("users").select("id, username, display_name, avatar_url, bio, kick_verified").eq("id", channel.owner_id).maybeSingle(),
     db.from("channel_follows").select("id", { count: "exact", head: true }).eq("channel_id", channel.id),
-    db.from("poll_snapshots").select("poll_id, channel_id, poll_created_at, data, updated_at").eq("channel_id", channel.id).order("poll_created_at", { ascending: false }).limit(30),
+    db.from("stream_activities").select("id, channel_id, poll_id, library_id, activity_type, title, body, category_type, media_type, poster_url, status, created_at").eq("channel_id", channel.id).order("created_at", { ascending: false }).limit(50),
     db.from("streamer_media_library").select("id, channel_id, source_poll_id, external_media_id, media_type, title, poster_url, release_year, status, started_at, completed_at, created_at, updated_at").eq("channel_id", channel.id).eq("status", "completed").order("completed_at", { ascending: false }).limit(60),
     getSession(),
   ]);
 
-  let following = false;
-  const isOwner = session?.uid === channel.owner_id;
-  if (session && !isOwner) {
-    const { data } = await db.from("channel_follows").select("id").eq("channel_id", channel.id).eq("user_id", session.uid).maybeSingle();
-    following = !!data;
-  }
-
   const completed = (library ?? []) as LibraryItem[];
   const games = completed.filter((item) => item.media_type === "game");
   const movies = completed.filter((item) => item.media_type !== "game");
+  const ownerUser = owner as { id: string; username: string; display_name: string | null; avatar_url: string | null; bio: string | null; kick_verified: boolean } | null;
+  if (!ownerUser?.kick_verified) notFound();
+
+  let following = false;
+  if (session && session.uid !== channel.owner_id) {
+    const { data: follow } = await db.from("channel_follows").select("id").eq("channel_id", channel.id).eq("user_id", session.uid).maybeSingle();
+    following = !!follow;
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      <section className="overflow-hidden rounded-[1.75rem] border border-line bg-panel shadow-2xl shadow-black/20">
-        <div className="relative h-40 bg-[radial-gradient(circle_at_15%_10%,rgba(83,252,24,.22),transparent_42%),radial-gradient(circle_at_90%_0%,rgba(34,211,238,.10),transparent_34%),linear-gradient(135deg,#121719,#0B0E0F)]">
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-kick/50 to-transparent" />
-        </div>
-
-        <div className="px-5 pb-7 sm:px-8">
-          <div className="-mt-12 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="flex items-end gap-4">
-              {owner?.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={owner.avatar_url} alt="" className="h-24 w-24 rounded-2xl border-4 border-panel object-cover shadow-xl" />
-              ) : (
-                <div className="grid h-24 w-24 place-items-center rounded-2xl border-4 border-panel bg-raise text-3xl font-bold">{owner?.username?.slice(0, 1).toUpperCase()}</div>
-              )}
-              <div className="pb-1">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-kick">Streamer</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <h1 className="font-display text-4xl font-extrabold">{owner?.display_name || owner?.username}</h1>
-                  {owner?.kick_verified && <VerifiedBadge />}
-                </div>
-                <p className="mt-1 text-sm font-semibold text-kick">@{owner?.username}</p>
-                <p className="text-sm text-mute">{followers ?? 0} seguidores · {games.length} jogos concluídos · {movies.length} filmes concluídos</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {owner?.bio && <span className="hidden max-w-md rounded-xl border border-line bg-ink px-4 py-2.5 text-sm text-mute lg:inline-block">{owner.bio}</span>}
-              {!isOwner && <FollowButton slug={slug} initialFollowing={following} initialFollowers={followers ?? 0} loggedIn={!!session} />}
-            </div>
+      <ProfileHero
+        displayName={ownerUser?.display_name || ownerUser?.username || slug}
+        username={ownerUser?.username || slug}
+        avatarUrl={ownerUser?.avatar_url ?? null}
+        bio={ownerUser?.bio ?? null}
+        verified={!!ownerUser?.kick_verified}
+        eyebrow="Streamer"
+        badgeLabel="Streamer verificado na Kick"
+        actions={(!session || session.uid === channel.owner_id) ? null : <FollowButton slug={slug} initialFollowing={following} initialFollowers={followers ?? 0} loggedIn />}
+        stats={
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ProfileStat icon="◎" label="Seguidores" value={String(followers ?? 0)} />
+            <ProfileStat icon="◈" label="Jogos concluídos" value={String(games.length)} />
+            <ProfileStat icon="◆" label="Filmes concluídos" value={String(movies.length)} />
           </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <ProfileStat icon="◉" label="Seguidores" value={String(followers ?? 0)} />
-            <ProfileStat icon="◷" label="Jogos finalizados" value={String(games.length)} />
-            <ProfileStat icon="▣" label="Filmes finalizados" value={String(movies.length)} />
-          </div>
-        </div>
-      </section>
+        }
+      />
 
       <nav className="mt-7 flex gap-2 overflow-x-auto border-b border-line pb-2">
         <TabLink active={tab === "feed"} href={`/streamer/${slug}`}>Feed</TabLink>
@@ -101,69 +82,59 @@ export default async function StreamerFeed({
       </nav>
 
       {tab === "feed" ? (
-        <PollFeed snapshots={(snapshots ?? []) as Array<{ poll_id: string; data: unknown }>} slug={slug} />
+        <ActivityFeed activities={(activities ?? []) as StreamActivity[]} />
       ) : (
-        <LibraryGrid title={tab === "games" ? "Jogos finalizados" : "Filmes finalizados"} items={tab === "games" ? games : movies} emptyMessage={tab === "games" ? "Este streamer ainda não marcou nenhum jogo como concluído." : "Este streamer ainda não marcou nenhum filme ou série como concluído."} />
+        <LibraryGrid
+          title={tab === "games" ? "Jogos finalizados" : "Filmes finalizados"}
+          items={tab === "games" ? games : movies}
+          emptyMessage={tab === "games" ? "Este streamer ainda não marcou nenhum jogo como concluído." : "Este streamer ainda não marcou nenhum filme ou série como concluído."}
+        />
       )}
     </main>
   );
 }
 
-function PollFeed({ snapshots, slug }: { snapshots: Array<{ poll_id: string; data: unknown }>; slug: string }) {
+function ActivityFeed({ activities }: { activities: StreamActivity[] }) {
+  if (!activities.length) {
+    return <section className="mt-7"><EmptyState title="Ainda não há atualizações" text="As novas votações e mudanças da biblioteca aparecerão aqui." /></section>;
+  }
+
   return (
-    <section className="mt-7 space-y-4">
-      <div className="flex items-end justify-between gap-4">
+    <section className="mt-7">
+      <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-kick">Feed</p>
-          <h2 className="font-display text-4xl font-extrabold">Votações de /{slug}</h2>
-          <p className="mt-1 text-sm text-mute">Todas as rodadas recentes deste streamer. Valores arrecadados não são exibidos publicamente.</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-kick">Atividade</p>
+          <h2 className="font-display text-4xl font-extrabold">Atualizações recentes</h2>
         </div>
-        <span className="text-sm text-mute">{snapshots.length} registros</span>
+        <span className="text-sm text-mute">{activities.length} atualizações</span>
       </div>
-
-      {!snapshots.length ? (
-        <EmptyState title="Ainda não há votações" text="Este streamer ainda não publicou nenhuma rodada no StreamChoice." />
-      ) : (
-        snapshots.map((snapshot) => {
-          const data = snapshot.data as SnapshotData;
-          const live = ["collecting", "voting", "paused"].includes(data.poll.status);
-          const top = data.ranking?.[0];
-          return (
-            <article key={snapshot.poll_id} className="rounded-2xl border border-line bg-panel p-5 sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-mute">{data.poll.category_type === "game" ? "JOGOS" : data.poll.category_type === "movie" ? "FILMES" : "MISTO"}</p>
-                  <h3 className="mt-1 font-display text-2xl font-extrabold">{data.poll.title}</h3>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${live ? "bg-kick text-ink" : "bg-raise text-mute"}`}>{live ? "EM ANDAMENTO" : "ENCERRADA"}</span>
-              </div>
-
-              {top ? (
-                <div className="mt-5 flex items-center gap-4 rounded-2xl bg-ink p-4">
-                  {top.poster_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={top.poster_url} alt="" className="h-20 w-14 rounded-lg object-cover" />
-                  ) : <div className="grid h-20 w-14 place-items-center rounded-lg bg-raise">▣</div>}
-                  <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-widest text-mute">{live ? "Líder atual" : "Resultado"}</p>
-                    <p className="truncate font-display text-2xl font-extrabold">{top.title}</p>
-                    <p className="text-sm text-kick">{Number(top.total_score ?? 0)} pontos</p>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <PublicStat label="Opções" value={String(data.ranking?.length ?? 0)} />
-                <PublicStat label="Votos grátis" value={String(data.free_votes_total ?? 0)} />
-                <PublicStat label="Contribuições" value={String(data.paid_count ?? 0)} />
-              </div>
-
-              <Link href={`/c/${slug}`} className="mt-4 inline-flex rounded-lg border border-line px-4 py-2.5 text-sm font-semibold transition hover:border-kick hover:text-kick">Abrir sala</Link>
-            </article>
-          );
-        })
-      )}
+      <div className="relative space-y-3 before:absolute before:bottom-0 before:left-5 before:top-0 before:w-px before:bg-line">
+        {activities.map((activity) => <ActivityCard key={activity.id} activity={activity} />)}
+      </div>
     </section>
+  );
+}
+
+function ActivityCard({ activity }: { activity: StreamActivity }) {
+  const label = activity.activity_type === "library_status" ? "BIBLIOTECA" : "VOTAÇÃO";
+  const icon = activity.activity_type === "library_status" ? (activity.media_type === "game" ? "🎮" : "🎬") : "◉";
+
+  return (
+    <article className="relative pl-12">
+      <div className="absolute left-2 top-5 grid h-7 w-7 place-items-center rounded-full border border-line bg-panel text-sm text-kick shadow-lg">
+        {icon}
+      </div>
+      <div className="rounded-2xl border border-line bg-panel p-4 transition hover:border-kick/30 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-kick">{label}</p>
+            <h3 className="mt-1 font-display text-2xl font-extrabold">{activity.title}</h3>
+          </div>
+          <time className="shrink-0 text-xs text-mute">{new Date(activity.created_at).toLocaleDateString("pt-BR")}</time>
+        </div>
+        <p className="mt-2 text-sm text-mute">{activity.body}</p>
+      </div>
+    </article>
   );
 }
 
@@ -213,10 +184,6 @@ function TabLink({ active, href, children }: { active: boolean; href: string; ch
 
 function ProfileStat({ icon, label, value }: { icon: string; label: string; value: string }) {
   return <div className="rounded-2xl border border-line bg-ink p-4"><div className="flex items-center justify-between gap-3"><span className="text-xl text-kick">{icon}</span><span className="font-display text-2xl font-extrabold">{value}</span></div><p className="mt-2 text-xs text-mute">{label}</p></div>;
-}
-
-function PublicStat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-line bg-ink p-3"><p className="font-display text-2xl font-extrabold">{value}</p><p className="mt-1 text-xs text-mute">{label}</p></div>;
 }
 
 function EmptyState({ title, text }: { title: string; text: string }) {

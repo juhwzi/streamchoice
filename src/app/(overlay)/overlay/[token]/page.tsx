@@ -26,5 +26,5 @@ export default async function OverlayPage({
   if (!channel) notFound();
 
   const s = Math.min(2.5, Math.max(0.5, Number(scale) || 1));
-  return <OverlayBoard channelId={channel.id} slug={channel.kick_channel_slug} initial={await getLatestSnapshot(channel.id)} scale={s} />;
+  return <OverlayBoard channelId={channel.id} initial={await getLatestSnapshot(channel.id)} scale={s} />;
 }

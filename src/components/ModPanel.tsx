@@ -13,7 +13,7 @@ interface Pending {
 }
 
 export function ModPanel({ channel, initial, role, pixReady }: {
-  channel: { id: string; slug: string }; initial: SnapshotRow | null; role: "STREAMER" | "MODERATOR"; pixReady: boolean;
+  channel: { id: string; slug: string }; initial: SnapshotRow | null; role: "ADMIN" | "STREAMER" | "MODERATOR"; pixReady: boolean;
 }) {
   const { snap, connected } = useLiveSnapshot(channel.id, initial);
   const poll = snap?.data.poll ?? null;

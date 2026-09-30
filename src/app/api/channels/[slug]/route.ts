@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fail } from "@/lib/api";
-import { requireSession } from "@/lib/auth/guard";
+import { requireSession, resolveRole } from "@/lib/auth/guard";
 import { admin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -20,9 +20,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ slug:
     .maybeSingle();
 
   if (!channel) return fail(404, "channel_not_found", "Sala não encontrada.");
-  if (channel.owner_id !== s.session.uid) return fail(403, "forbidden", "Somente o streamer pode excluir a sala.");
+  const role = await resolveRole(s.session.uid, channel);
+  if (role !== "STREAMER" && role !== "ADMIN") return fail(403, "forbidden", "Somente um streamer verificado ou administrador pode excluir a sala.");
 
-  const { error } = await db.from("channels").delete().eq("id", channel.id).eq("owner_id", s.session.uid);
+  let query = db.from("channels").delete().eq("id", channel.id);
+  if (role !== "ADMIN") query = query.eq("owner_id", s.session.uid);
+  const { error } = await query;
   if (error) {
     console.error("[channels] delete", error);
     return fail(500, "internal", "Não foi possível excluir a sala.");

@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 
 export default async function OwnProfileRedirect() {
   const session = await getSession();
-  if (!session) redirect("/entrar?next=/u/me");
+  if (!session) {
+    redirect("/entrar?next=/u/me");
+    return null;
+  }
 
   const { data: user } = await admin().from("users").select("username").eq("id", session.uid).maybeSingle();
   if (!user?.username) redirect("/entrar");

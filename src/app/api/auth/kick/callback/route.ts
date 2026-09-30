@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { appUrl } from "@/lib/env";
+import { appUrl, isConfiguredAdmin } from "@/lib/env";
 import { exchangeCode, fetchKickUser, fetchOwnChannel } from "@/lib/kick/client";
 import { sanitizeNext } from "@/lib/kick/pkce";
 import { SESSION_COOKIE, SESSION_TTL_SECONDS, signSession, verifyOauthState } from "@/lib/session-token";
 import { admin } from "@/lib/supabase/admin";
+import { syncStreamerChannel } from "@/lib/auth/streamer-channel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,23 +33,29 @@ export async function GET(req: Request) {
       fetchOwnChannel(access_token),
     ]);
 
+    const adminConfigured = isConfiguredAdmin(kick.id, kick.name);
+    const adminAllowlistConfigured = Boolean(process.env.ADMIN_KICK_USER_IDS || process.env.ADMIN_KICK_USERNAMES);
+    const userPayload: Record<string, unknown> = {
+      kick_user_id: kick.id,
+      username: kick.name,
+      avatar_url: kick.avatar,
+      kick_verified: ownChannel.isVerified,
+      updated_at: new Date().toISOString(),
+    };
+    if (adminAllowlistConfigured) userPayload.is_admin = adminConfigured;
+
     const { data: user, error } = await admin()
       .from("users")
-      .upsert(
-        {
-          kick_user_id: kick.id,
-          username: kick.name,
-          avatar_url: kick.avatar,
-          kick_verified: ownChannel.isVerified,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "kick_user_id" },
-      )
+      .upsert(userPayload, { onConflict: "kick_user_id" })
       .select("id")
       .single();
 
     if (error || !user) throw new Error(error?.message ?? "upsert de usuário falhou");
 
+    // A verificação da Kick é a única fonte do papel de streamer.
+    // Ao fazer login, uma conta recém-verificada recebe/reativa automaticamente
+    // sua sala; uma conta que perdeu o selo fica com a sala desativada.
+    await syncStreamerChannel(user.id, ownChannel.slug, ownChannel.isVerified);
 
     const session = await signSession({
       uid: user.id,

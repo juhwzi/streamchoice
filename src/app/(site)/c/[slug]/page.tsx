@@ -18,6 +18,9 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
     admin().from("channel_follows").select("id", { count: "exact", head: true }).eq("channel_id", channel.id).then((r) => r.count ?? 0),
   ]);
 
+  // Um canal só é uma sala de streamer se o dono estiver verificado na Kick.
+  if (!owner?.kick_verified) notFound();
+
   let myVote: string | null = null;
   let following = false;
   if (session && snapshot) {

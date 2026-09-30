@@ -5,6 +5,7 @@ import { DashboardPrivacyProvider, PrivateValue, PrivacyToggle } from "@/compone
 import { LibraryManager, type LibraryCandidate } from "@/components/LibraryManager";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { appUrl } from "@/lib/env";
+import { getAccountAccess } from "@/lib/auth/guard";
 import { formatBRL } from "@/lib/scoring";
 import { getSession } from "@/lib/session";
 import { admin } from "@/lib/supabase/admin";
@@ -29,12 +30,47 @@ type PaidVoteRow = {
 
 export default async function Dashboard() {
   const session = await getSession();
-  if (!session) redirect("/entrar?next=/dashboard");
+  if (!session) {
+    redirect("/entrar?next=/dashboard");
+    return null;
+  }
 
   const db = admin();
+  const access = await getAccountAccess(session.uid);
+
+  if (!access.kick_verified && !access.is_admin) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-12">
+        <section className="overflow-hidden rounded-[2rem] border border-line bg-panel p-8 shadow-2xl shadow-black/10">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gold/10 text-2xl">✓</div>
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-gold">Acesso de streamer</p>
+          <h1 className="mt-2 font-display text-4xl font-extrabold">Seu canal ainda não está habilitado.</h1>
+          <p className="mt-3 max-w-2xl leading-6 text-mute">No StreamChoice, as funções de streamer ficam disponíveis somente para contas com selo de verificado na Kick. Faça login novamente quando sua conta estiver verificada para sincronizar o status.</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link href="/" className="rounded-lg border border-line px-5 py-3 font-semibold">Voltar para a home</Link>
+            <Link href="/entrar?next=/dashboard" className="rounded-lg bg-kick px-5 py-3 font-bold text-ink">Entrar novamente</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   const { data: channel } = await db.from("channels").select("*").eq("owner_id", session.uid).maybeSingle();
 
   if (!channel) {
+    if (access.is_admin) {
+      return (
+        <main className="mx-auto max-w-3xl px-4 py-12">
+          <section className="rounded-[2rem] border border-gold/20 bg-panel p-8 shadow-2xl shadow-black/10">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Administrador</p>
+            <h1 className="mt-2 font-display text-4xl font-extrabold">Central de testes do StreamChoice.</h1>
+            <p className="mt-3 text-mute">Sua conta tem acesso administrativo. Use o painel interno para validar banco, feed, perfis e fluxos de teste.</p>
+            <Link href="/admin" className="mt-6 inline-flex rounded-lg bg-gold px-5 py-3 font-bold text-ink">Abrir admin</Link>
+          </section>
+        </main>
+      );
+    }
+
     return (
       <main className="mx-auto max-w-xl px-4 py-12">
         <CreateChannelButton slug={session.slug} />
@@ -82,6 +118,7 @@ export default async function Dashboard() {
 
   const totalLibraryCompleted = libraryRows.filter((item) => item.status === "completed").length;
   const verified = !!profile?.kick_verified;
+  const isAdmin = access.is_admin;
 
   return (
     <DashboardPrivacyProvider>
@@ -91,10 +128,10 @@ export default async function Dashboard() {
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-kick">Central do streamer</p>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-kick">{isAdmin ? "Central administrativa" : "Central do streamer"}</p>
                 {verified && <div className="flex items-center gap-1.5 text-xs font-semibold text-kick"><VerifiedBadge /> Verificado</div>}
               </div>
-              <h1 className="mt-2 font-display text-5xl font-extrabold leading-none">/{slug}</h1>
+              <h1 className="mt-2 font-display text-5xl font-extrabold leading-none">{slug}</h1>
               <p className="mt-3 max-w-2xl text-mute">Gerencie suas votações, acompanhe a comunidade e organize a biblioteca do que foi escolhido pela live.</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -165,7 +202,7 @@ export default async function Dashboard() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">Comunidade</p>
               <h2 className="font-display text-3xl font-extrabold">Maiores contribuidores</h2>
-              <p className="mt-1 text-sm text-mute">Ranking por valor total de Pix confirmado. Use “Esconder valores” antes de compartilhar a tela.</p>
+              <p className="mt-1 text-sm text-mute">Ranking por valor total de Pix confirmado. Os valores ficam ocultos quando “Esconder valores” está ativado.</p>
             </div>
             <span className="rounded-full bg-raise px-3 py-1 text-xs text-mute">Top 10</span>
           </div>

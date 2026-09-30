@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-ink px-3 py-2 outline-none focus:border-kick";
@@ -13,14 +13,43 @@ async function call(url: string, method: string, body?: unknown) {
 export function CreateChannelButton({ slug }: { slug: string | null | undefined }) {
   const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(Boolean(slug));
+
+  useEffect(() => {
+    if (!slug) {
+      setSyncing(false);
+      return;
+    }
+
+    let active = true;
+    void (async () => {
+      const r = await call("/api/channels", "POST");
+      if (!active) return;
+      if (r.ok) {
+        router.refresh();
+      } else {
+        setErr(r.msg ?? "Não foi possível sincronizar sua sala.");
+        setSyncing(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [router, slug]);
+
   return (
-    <div className="rounded-xl border border-line bg-panel p-6">
-      <h2 className="font-display text-3xl font-extrabold">Criar minha sala</h2>
-      <p className="mt-2 text-mute">{slug ? <>Sua sala usará o canal da Kick <b className="text-white">/{slug}</b>.</> : "Não conseguimos ler seu canal na Kick. Saia e entre novamente."}</p>
-      {err && <p className="mt-2 text-red-400">{err}</p>}
-      <button disabled={!slug} onClick={async () => { const r = await call("/api/channels", "POST"); r.ok ? router.refresh() : setErr(r.msg ?? "Erro"); }} className="mt-4 rounded-lg bg-kick px-6 py-3 font-bold text-ink disabled:opacity-50">
-        Criar sala
-      </button>
+    <div className="rounded-[1.5rem] border border-line bg-panel p-6">
+      <div className="flex items-start gap-4">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-kick/10 text-xl text-kick">✓</div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-kick">Streamer verificado</p>
+          <h2 className="mt-1 font-display text-3xl font-extrabold">Configurando sua sala</h2>
+          <p className="mt-2 max-w-xl text-mute">Sua conta está verificada na Kick, então o StreamChoice cria e ativa sua sala automaticamente. {slug ? <>Canal sincronizado: <b className="text-white">/{slug}</b>.</> : "Não conseguimos ler seu canal da Kick."}</p>
+          {err && <p className="mt-3 text-sm text-red-300">{err}</p>}
+          {syncing && <p className="mt-3 text-sm font-semibold text-kick">Sincronizando…</p>}
+        </div>
+      </div>
     </div>
   );
 }

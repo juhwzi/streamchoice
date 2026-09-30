@@ -1,58 +1,197 @@
 # StreamChoice
 
-A comunidade da Kick sugere, o time de moderação cura e o chat vota no próximo filme/jogo da live, com overlay para o OBS e votos pagos opcionais via Pix (zero-custódia).
+Plataforma para transformar a escolha do próximo filme ou jogo da live em uma experiência social: a comunidade sugere, a moderação cura, o chat vota e o streamer organiza o histórico do que foi escolhido.
 
-Next.js 15 (App Router) · Supabase (Postgres 16 + Realtime) · Tailwind · Kick OAuth 2.1 PKCE · TMDB · IGDB · Livepix/PixGG.
+## Stack
 
-## Início rápido
+- Next.js 15 + React 19 + TypeScript
+- Supabase / PostgreSQL + Realtime
+- Tailwind CSS
+- Kick OAuth 2.1 + PKCE
+- TMDB para filmes/séries
+- IGDB para jogos
+- Livepix/PixGG para votos pagos (opcional)
 
-```bash
-cp .env.example .env.local          # preencha as variáveis
-npm install
-# No Supabase (SQL Editor ou `supabase db push`): rode, em ordem,
-#   supabase/migrations/0001_schema.sql
-#   supabase/migrations/0002_rls.sql
-# Depois valide o banco: supabase/tests/rls_and_ranking.sql  (termina em ROLLBACK)
-npm run dev
-npm test                             # testes unitários (Node ≥ 22.6)
+## Funcionalidades
+
+### Social
+
+- Perfil personalizado de usuário.
+- `@username`, avatar, bio e estatísticas.
+- Seguir streamers.
+- Feed personalizado em `/feed`.
+- Página pública do streamer em `/streamer/[slug]`.
+- Selo de verificação da Kick sincronizado para streamers verificados.
+
+### Feed e biblioteca
+
+O feed possui abas para:
+
+- Votações
+- Jogos finalizados
+- Filmes finalizados
+
+Quando uma votação é encerrada com vencedor, o streamer pode adicionar esse conteúdo à biblioteca e definir:
+
+```text
+up_next     → A seguir
+in_progress → Em andamento
+completed   → Concluído
 ```
 
-Detalhes de configuração (Kick, Supabase, OBS, Livepix) e o roteiro do teste de carga: **[docs/OPERACAO.md](docs/OPERACAO.md)**.
-Decisões e desvios em relação ao PRD: **[docs/DECISOES.md](docs/DECISOES.md)**.
+A área pública mostra apenas itens marcados como `completed`.
 
-## Roadmap (seção 9 do PRD) → onde está
+### Painel do streamer
 
-| Fase | Item | Implementação |
-|---|---|---|
-| **1** Fundação e Auth | Next.js + Supabase | `package.json`, `src/lib/supabase/*`, `src/app/(site)/layout.tsx` |
-| | OAuth 2.1 PKCE com a Kick | `src/lib/kick/{pkce,client}.ts`, `src/app/api/auth/kick/{login,callback}`, sessão em `src/lib/session-token.ts` |
-| | Tabelas, índices e RLS | `supabase/migrations/0001_schema.sql`, `0002_rls.sql`, RBAC em `src/lib/auth/guard.ts` |
-| **2** Mídia e Curadoria | Clientes TMDB e IGDB | `src/lib/media/{tmdb,igdb,search}.ts` |
-| | Modal de submissão, busca em tempo real, bloqueio de duplicatas | `src/components/SubmitModal.tsx`, `api/media/search`, `api/suggestions` (+ `UNIQUE(poll_id, external_media_id)`) |
-| | Painel do moderador em tempo real | `src/components/ModPanel.tsx`, `app/(site)/mod/[slug]`, `api/suggestions/[id]`, `api/polls/[id]/pending` |
-| **3** Votação e Overlays | 1 voto grátis por usuário | `api/votes` → RPC `cast_vote` (`UNIQUE(poll_id, user_id)`) |
-| | Realtime (WebSocket) | tabela `poll_snapshots` + triggers; hook `src/lib/hooks/useLiveSnapshot.ts` |
-| | Rota do OBS (barras + contagem regressiva) | `app/(overlay)/overlay/[token]`, `OverlayBoard.tsx`, `RankingBars.tsx`, `api/time`, `api/polls/[id]/{action,finalize}` |
-| **4** Monetização e Ajustes | Webhook Livepix/PixGG (HMAC + tag) | `api/webhooks/livepix`, `src/lib/webhook/*`, RPC `record_paid_vote` |
-| | Métricas financeiras (painel + overlay) | `app/(site)/dashboard`, rodapé e tela de vencedor/baleia em `OverlayBoard.tsx` |
-| | Testes de carga e documentação | `load/spike.k6.js`, `scripts/seed-load.mjs`, `scripts/realtime-latency.mjs`, `supabase/tests/*.sql`, `tests/*.test.ts`, `docs/` |
+- Votações recentes e métricas.
+- Maiores contribuidores.
+- Controle para esconder valores monetários na tela.
+- Configuração de Pix.
+- Overlay do OBS.
+- Moderadores.
+- Biblioteca dos vencedores.
+- Exclusão permanente da sala.
+
+### Privacidade financeira
+
+Os valores arrecadados são exibidos somente no painel do streamer. As páginas públicas mostram contagens, votos e resultados, mas não exibem o total arrecadado.
 
 ## Estrutura
 
-```
-src/app/(site)/        páginas do site (landing, /c/[slug], /mod/[slug], /dashboard)
-src/app/(overlay)/     layout raiz transparente p/ o OBS
-src/app/api/           rotas: auth, mídia, sugestões, polls, votos, canais, webhooks
-src/components/        UI (ViewerRoom, ModPanel, OverlayBoard, RankingBars, SubmitModal…)
-src/lib/               regras puras (scoring, poll-state, pkce, webhook) + camada de servidor
-supabase/migrations/   schema, funções de negócio, snapshots, RLS
-supabase/tests/        teste SQL (ranking, idempotência, RLS)
-tests/                 testes unitários (node:test)
-load/ scripts/         teste de carga (k6) e medição de latência do Realtime
+```text
+src/
+├── app/
+│   ├── (site)/
+│   │   ├── page.tsx
+│   │   ├── feed/
+│   │   ├── dashboard/
+│   │   ├── streamer/[slug]/
+│   │   ├── u/[username]/
+│   │   └── u/me/
+│   └── api/
+│       ├── auth/kick/
+│       ├── channels/
+│       ├── library/
+│       ├── polls/
+│       ├── suggestions/
+│       ├── votes/
+│       └── webhooks/livepix/
+├── components/
+├── lib/
+└── ...
+supabase/
+└── migrations/
+    ├── 0001_schema.sql
+    ├── 0002_rls.sql
+    ├── 0003_social_profiles.sql
+    └── 0004_library_verification.sql
 ```
 
-## Status de verificação (seja honesto com você mesmo antes do deploy)
+## Configuração local
 
-- ✅ **Executado:** 16 testes unitários (PKCE contra o vetor da RFC 7636, HMAC, parser de Pix, pontuação, relógio, deduplicação de IDs); checagem de sintaxe dos scripts.
-- ⚠️ **Escrito mas ainda NÃO executado** (o ambiente de geração não tinha rede, Postgres nem TypeScript): `npm run typecheck`/`build`, as migrations SQL, `supabase/tests/rls_and_ranking.sql`, o fluxo real com Kick/TMDB/IGDB e os testes de carga. Rode nesta ordem: `npm install` → `npm run typecheck` → migrations → teste SQL → `npm run dev`.
-- ⚠️ **Dependem de validação com a fonte:** formato do payload/assinatura do Livepix/PixGG (`src/lib/webhook/payload.ts`) e os escopos/respostas da Kick (`src/lib/kick/client.ts`).
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+## Supabase
+
+Execute no SQL Editor, nesta ordem:
+
+```text
+supabase/migrations/0001_schema.sql
+supabase/migrations/0002_rls.sql
+supabase/migrations/0003_social_profiles.sql
+supabase/migrations/0004_library_verification.sql
+```
+
+A migration `0004_library_verification.sql` adiciona:
+
+- `users.kick_verified`;
+- tabela `streamer_media_library`;
+- status da biblioteca;
+- RPC `upsert_streamer_library`;
+- leitura pública apenas dos itens concluídos.
+
+## Kick
+
+O login usa OAuth 2.1 + PKCE. O callback de produção deve ser:
+
+```text
+https://SEU-DOMINIO/api/auth/kick/callback
+```
+
+O projeto consulta o canal do usuário após o login e persiste o `is_verified` retornado pela API da Kick para exibir o selo no StreamChoice.
+
+> Usuários que já possuem uma sessão antiga precisam fazer login novamente para atualizar o status de verificação.
+
+## Environment Variables
+
+```env
+NEXT_PUBLIC_APP_URL=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SESSION_SECRET=
+KICK_CLIENT_ID=
+KICK_CLIENT_SECRET=
+TMDB_READ_TOKEN=
+TWITCH_CLIENT_ID=
+TWITCH_CLIENT_SECRET=
+WEBHOOK_SIGNATURE_HEADER=
+```
+
+Nunca publique `.env.local` nem chaves privadas no GitHub.
+
+## Deploy na Vercel
+
+Configuração recomendada:
+
+```text
+Framework Preset: Next.js
+Root Directory: ./
+Build Command: npm run build
+Output Directory: vazio
+Install Command: npm install
+Node.js: 22.x
+```
+
+Depois de configurar as Environment Variables, faça o deploy normalmente.
+
+## Testes locais
+
+```bash
+npm run typecheck
+npm run build
+npm test
+```
+
+A instalação de dependências e o build precisam ser validados no ambiente de deploy real antes de considerar a versão pronta para produção.
+
+## 🔐 Regras de conta e acesso
+
+- Todo login é originado pela Kick, mas **somente contas com `kick_verified = true` recebem funcionalidades de streamer**.
+- Usuários sem verificação funcionam como viewers: podem seguir streamers, acompanhar o feed e votar.
+- Administradores são configurados com `ADMIN_KICK_USER_IDS` (preferencial) ou `ADMIN_KICK_USERNAMES`.
+- O painel `/admin` é privado e serve para validação de saúde, feed, perfis e fluxos de desenvolvimento.
+
+## 📰 Feed
+
+- Viewer: recebe atualizações dos streamers seguidos.
+- Streamer verificado/admin: possui as abas `Seguindo` e `Minhas atualizações`.
+- Jogos e filmes/séries concluídos também podem ser filtrados no feed.
+
+## 🎛️ Overlay OBS
+
+O overlay foi desenhado para ser compacto e discreto, mostrando apenas o título da rodada, countdown, top 3 e vencedor quando aplicável.
+
+## 🗃️ Migrations
+
+Para um banco que já possui as três primeiras versões, execute somente:
+
+```sql
+supabase/migrations/0004_platform_roles_feed.sql
+```
+
+A migration `0004` adiciona `is_admin`, cria o feed de atividades e os gatilhos que publicam novas votações, mudanças de status e atualizações da biblioteca.
