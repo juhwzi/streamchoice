@@ -39,6 +39,15 @@ export default async function Dashboard() {
   const totalPix = rounds.reduce((a, r) => a + Number(r.d.paid_count ?? 0), 0);
   const one = <T,>(x: T | T[] | null | undefined): T | null => (Array.isArray(x) ? x[0] ?? null : x ?? null);
 
+  type TopContributor = {
+    donor_display_name: string;
+    donation_count: number;
+    total_amount: number | string;
+    last_contribution_at: string;
+  };
+
+  const topContributors = (contributors ?? []) as TopContributor[];
+
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -101,10 +110,10 @@ export default async function Dashboard() {
           <table className="w-full min-w-[36rem] text-left text-sm">
             <thead className="text-mute"><tr><th className="py-2">#</th><th>Contribuidor</th><th>Contribuições</th><th>Total</th><th>Última</th></tr></thead>
             <tbody>
-              {(contributors ?? []).map((c, i) => (
+              {topContributors.map((c, i) => (
                 <tr key={`${c.donor_display_name}-${i}`} className="border-t border-line"><td className="py-2 font-display text-lg font-extrabold text-kick">{i + 1}</td><td className="font-semibold">{c.donor_display_name}</td><td>{c.donation_count}</td><td className="font-semibold text-emerald">{formatBRL(Number(c.total_amount))}</td><td className="text-mute">{new Date(c.last_contribution_at).toLocaleDateString("pt-BR")}</td></tr>
               ))}
-              {!contributors?.length && <tr><td colSpan={5} className="py-6 text-center text-mute">Ainda não há contribuições confirmadas.</td></tr>}
+              {!topContributors.length && <tr><td colSpan={5} className="py-6 text-center text-mute">Ainda não há contribuições confirmadas.</td></tr>}
             </tbody>
           </table>
         </div>
