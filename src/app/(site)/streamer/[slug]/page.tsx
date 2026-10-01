@@ -82,7 +82,7 @@ export default async function StreamerFeed({
       </nav>
 
       {tab === "feed" ? (
-        <ActivityFeed activities={(activities ?? []) as StreamActivity[]} />
+        <ActivityFeed activities={(activities ?? []) as StreamActivity[]} slug={slug} />
       ) : (
         <LibraryGrid
           title={tab === "games" ? "Jogos finalizados" : "Filmes finalizados"}
@@ -94,7 +94,7 @@ export default async function StreamerFeed({
   );
 }
 
-function ActivityFeed({ activities }: { activities: StreamActivity[] }) {
+function ActivityFeed({ activities, slug }: { activities: StreamActivity[]; slug: string }) {
   if (!activities.length) {
     return <section className="mt-7"><EmptyState title="Ainda não há atualizações" text="As novas votações e mudanças da biblioteca aparecerão aqui." /></section>;
   }
@@ -109,13 +109,13 @@ function ActivityFeed({ activities }: { activities: StreamActivity[] }) {
         <span className="text-sm text-mute">{activities.length} atualizações</span>
       </div>
       <div className="relative space-y-3 before:absolute before:bottom-0 before:left-5 before:top-0 before:w-px before:bg-line">
-        {activities.map((activity) => <ActivityCard key={activity.id} activity={activity} />)}
+        {activities.map((activity) => <ActivityCard key={activity.id} activity={activity} slug={slug} />)}
       </div>
     </section>
   );
 }
 
-function ActivityCard({ activity }: { activity: StreamActivity }) {
+function ActivityCard({ activity, slug }: { activity: StreamActivity; slug: string }) {
   const label = activity.activity_type === "library_status" ? "BIBLIOTECA" : "VOTAÇÃO";
   const icon = activity.activity_type === "library_status" ? (activity.media_type === "game" ? "🎮" : "🎬") : "◉";
 
@@ -133,6 +133,14 @@ function ActivityCard({ activity }: { activity: StreamActivity }) {
           <time className="shrink-0 text-xs text-mute">{new Date(activity.created_at).toLocaleDateString("pt-BR")}</time>
         </div>
         <p className="mt-2 text-sm text-mute">{activity.body}</p>
+        {activity.poll_id && (activity.activity_type === "poll_created" || activity.activity_type === "poll_status") && (
+          <Link
+            href={`/c/${slug}?poll=${activity.poll_id}`}
+            className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-kick px-4 py-2.5 text-sm font-bold text-ink transition hover:brightness-95"
+          >
+            Abrir votação →
+          </Link>
+        )}
       </div>
     </article>
   );

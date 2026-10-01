@@ -35,6 +35,20 @@ export async function POST(req: Request) {
   if ((await resolveRole(s.session.uid, channel)) === "VIEWER") return fail(403, "forbidden", "Apenas streamer ou moderadores.");
 
   if (b.pollMode === "bracket") return fail(422, "bracket_unavailable", "O modo mata-mata ainda não está disponível.");
+
+  const { data: activeSameCategory } = await db
+    .from("polls")
+    .select("id, category_type")
+    .eq("channel_id", channel.id)
+    .eq("category_type", b.categoryType)
+    .neq("status", "completed")
+    .maybeSingle();
+
+  if (activeSameCategory) {
+    const label = b.categoryType === "movie" ? "filmes" : b.categoryType === "game" ? "jogos" : "conteúdo misto";
+    return fail(409, "active_poll_exists", `Já existe uma votação de ${label} em andamento. Encerre-a antes de criar outra.`);
+  }
+
   if (b.isPaidVoting && (!channel.livepix_url || !channel.livepix_webhook_secret)) {
     return fail(422, "pix_not_configured", "O streamer precisa configurar o Livepix/PixGG e o segredo do webhook antes.");
   }
@@ -54,7 +68,10 @@ export async function POST(req: Request) {
     .select("id")
     .single();
   if (error) {
-    if (error.code === "23505") return fail(409, "active_poll_exists", "Já existe uma rodada em andamento. Encerre-a primeiro.");
+    if (error.code === "23505") {
+      const label = b.categoryType === "movie" ? "filmes" : b.categoryType === "game" ? "jogos" : "conteúdo misto";
+      return fail(409, "active_poll_exists", `Já existe uma votação de ${label} em andamento. Encerre-a antes de criar outra.`);
+    }
     return fail(500, "internal", "Falha ao criar a rodada.");
   }
   return NextResponse.json({ id: data.id }, { status: 201 });

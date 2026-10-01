@@ -9,12 +9,14 @@ export function OverlayBoard({
   channelId,
   initial,
   scale,
+  pinnedPollId = null,
 }: {
   channelId: string;
   initial: SnapshotRow | null;
   scale: number;
+  pinnedPollId?: string | null;
 }) {
-  const { snap } = useLiveSnapshot(channelId, initial);
+  const { snap } = useLiveSnapshot(channelId, initial, pinnedPollId);
   const poll = snap?.data.poll ?? null;
   const remaining = useCountdown(poll);
 

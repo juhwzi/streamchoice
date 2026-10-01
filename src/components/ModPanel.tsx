@@ -12,10 +12,10 @@ interface Pending {
   justification: string | null; vote_tag: string; suggested_by_name: string; created_at: string;
 }
 
-export function ModPanel({ channel, initial, role, pixReady }: {
-  channel: { id: string; slug: string }; initial: SnapshotRow | null; role: "ADMIN" | "STREAMER" | "MODERATOR"; pixReady: boolean;
+export function ModPanel({ channel, initial, role, pixReady, pinnedPollId = null }: {
+  channel: { id: string; slug: string }; initial: SnapshotRow | null; role: "ADMIN" | "STREAMER" | "MODERATOR"; pixReady: boolean; pinnedPollId?: string | null;
 }) {
-  const { snap, connected } = useLiveSnapshot(channel.id, initial);
+  const { snap, connected } = useLiveSnapshot(channel.id, initial, pinnedPollId);
   const poll = snap?.data.poll ?? null;
   const remaining = useCountdown(poll);
   const [queue, setQueue] = useState<Pending[]>([]);

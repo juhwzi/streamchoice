@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { OverlayBoard } from "@/components/OverlayBoard";
-import { getLatestSnapshot } from "@/lib/data";
+import { getLatestActiveSnapshot, getLatestSnapshot } from "@/lib/data";
 import { admin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,11 @@ export default async function OverlayPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ scale?: string }>;
+  searchParams: Promise<{ scale?: string; category?: string }>;
 }) {
   const { token } = await params;
-  const { scale } = await searchParams;
+  const { scale, category } = await searchParams;
+  const selectedCategory = category === "movie" || category === "game" ? category : null;
   if (!/^[0-9a-f-]{36}$/i.test(token)) notFound();
 
   const { data: channel } = await admin()
@@ -26,5 +27,8 @@ export default async function OverlayPage({
   if (!channel) notFound();
 
   const s = Math.min(2.5, Math.max(0.5, Number(scale) || 1));
-  return <OverlayBoard channelId={channel.id} initial={await getLatestSnapshot(channel.id)} scale={s} />;
+  const initial = selectedCategory
+    ? await getLatestActiveSnapshot(channel.id, selectedCategory)
+    : (await getLatestActiveSnapshot(channel.id)) ?? (await getLatestSnapshot(channel.id));
+  return <OverlayBoard channelId={channel.id} initial={initial} scale={s} pinnedPollId={selectedCategory ? initial?.poll_id ?? null : null} />;
 }

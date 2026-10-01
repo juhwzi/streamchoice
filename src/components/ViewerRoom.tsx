@@ -13,13 +13,15 @@ import type { RankingRow, SnapshotRow } from "@/lib/types";
 
 interface Props {
   channel: { id: string; slug: string; livepixUrl: string | null; ownerName: string; ownerUsername: string; ownerAvatar: string | null; ownerVerified: boolean; followerCount: number; following: boolean };
+  pinnedPollId?: string | null;
+  activePolls?: Array<{ id: string; title: string; category_type: "movie" | "game" | "mixed"; status: string; created_at: string }>;
   initial: SnapshotRow | null;
   loggedIn: boolean;
   myVote: string | null;
 }
 
-export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: Props) {
-  const { snap, connected } = useLiveSnapshot(channel.id, initial);
+export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote, pinnedPollId = null, activePolls = [] }: Props) {
+  const { snap, connected } = useLiveSnapshot(channel.id, initial, pinnedPollId);
   const poll = snap?.data.poll ?? null;
   const remaining = useCountdown(poll);
   const flash = useLeaderFlash(snap?.data.ranking);
@@ -30,7 +32,8 @@ export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: 
   const [copied, setCopied] = useState(false);
 
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 3500); };
-  const loginHref = `/entrar?next=${encodeURIComponent(`/c/${channel.slug}`)}`;
+  const returnPath = poll ? `/c/${channel.slug}?poll=${encodeURIComponent(poll.id)}` : `/c/${channel.slug}`;
+  const loginHref = `/entrar?next=${encodeURIComponent(returnPath)}`;
 
   async function vote(r: RankingRow) {
     if (!poll) return;
@@ -89,6 +92,25 @@ export function ViewerRoom({ channel, initial, loggedIn, myVote: initialVote }: 
         </div>
         <FollowButton slug={channel.slug} initialFollowing={channel.following} initialFollowers={channel.followerCount} loggedIn={loggedIn} />
       </section>
+
+      {activePolls.length > 1 && (
+        <nav className="mb-5 flex flex-wrap gap-2 rounded-xl border border-line bg-panel p-2" aria-label="Votações ativas">
+          {activePolls.map((active) => {
+            const href = `/c/${channel.slug}?category=${active.category_type}`;
+            const activeHere = poll?.id === active.id;
+            const label = active.category_type === "movie" ? "Filmes" : active.category_type === "game" ? "Jogos" : "Misto";
+            return (
+              <Link
+                key={active.id}
+                href={href}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeHere ? "bg-kick text-ink" : "text-mute hover:bg-raise hover:text-white"}`}
+              >
+                {label} · {active.title}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       <div className="flex items-start justify-between gap-4">
         <div>

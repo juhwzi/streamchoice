@@ -11,23 +11,32 @@ const COLS = "poll_id, channel_id, poll_created_at, updated_at, data";
  * regrava a linha de poll_snapshots (via trigger) e chega aqui já com o ranking pronto (RF19, RNF01).
  * Rede de segurança: se o socket cair, refaz a leitura por HTTP a cada 10s até reconectar.
  */
-export function useLiveSnapshot(channelId: string, initial: SnapshotRow | null) {
+export function useLiveSnapshot(channelId: string, initial: SnapshotRow | null, pinnedPollId: string | null = null) {
   const [snap, setSnap] = useState<SnapshotRow | null>(initial);
   const [connected, setConnected] = useState(false);
   const connectedRef = useRef(false);
 
+  useEffect(() => {
+    setSnap(initial);
+  }, [channelId, pinnedPollId, initial?.poll_id]);
+
   const accept = useCallback((row: SnapshotRow) => setSnap((cur) => pickNewer(cur, row)), []);
 
   const refetch = useCallback(async () => {
-    const { data } = await getBrowserSupabase()
+    let query = getBrowserSupabase()
       .from("poll_snapshots")
       .select(COLS)
-      .eq("channel_id", channelId)
-      .order("poll_created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .eq("channel_id", channelId);
+
+    if (pinnedPollId) {
+      query = query.eq("poll_id", pinnedPollId);
+    } else {
+      query = query.order("poll_created_at", { ascending: false }).limit(1);
+    }
+
+    const { data } = await query.maybeSingle();
     if (data) accept(data as unknown as SnapshotRow);
-  }, [channelId, accept]);
+  }, [channelId, accept, pinnedPollId]);
 
   useEffect(() => {
     const sb = getBrowserSupabase();
@@ -35,7 +44,12 @@ export function useLiveSnapshot(channelId: string, initial: SnapshotRow | null) 
       .channel(`snap:${channelId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "poll_snapshots", filter: `channel_id=eq.${channelId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "poll_snapshots",
+          filter: pinnedPollId ? `poll_id=eq.${pinnedPollId}` : `channel_id=eq.${channelId}`,
+        },
         (payload) => {
           if (payload.new && "data" in payload.new) accept(payload.new as unknown as SnapshotRow);
         },
@@ -53,7 +67,7 @@ export function useLiveSnapshot(channelId: string, initial: SnapshotRow | null) 
       clearInterval(timer);
       void sb.removeChannel(ch);
     };
-  }, [channelId, accept, refetch]);
+  }, [channelId, accept, refetch, pinnedPollId]);
 
   return { snap, connected };
 }

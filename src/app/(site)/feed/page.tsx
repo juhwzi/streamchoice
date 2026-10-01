@@ -212,6 +212,15 @@ function ActivityCard({
           <h2 className="mt-2 font-display text-2xl font-extrabold">{activity.title}</h2>
           <p className="mt-1 text-sm text-mute">{activity.body}</p>
 
+          {activity.poll_id && (activity.activity_type === "poll_created" || activity.activity_type === "poll_status") && (
+            <Link
+              href={`/c/${channel.kick_channel_slug}?poll=${activity.poll_id}`}
+              className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-kick px-4 py-2.5 text-sm font-bold text-ink transition hover:brightness-95"
+            >
+              Abrir votação →
+            </Link>
+          )}
+
           {activity.poster_url && (
             <div className="mt-4 flex items-center gap-3 rounded-xl bg-ink p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -1,21 +1,38 @@
 import { notFound } from "next/navigation";
 import { ViewerRoom } from "@/components/ViewerRoom";
-import { getChannelBySlug, getLatestSnapshot } from "@/lib/data";
+import { getActivePolls, getChannelBySlug, getLatestActiveSnapshot, getLatestSnapshot, getSnapshotByPollId } from "@/lib/data";
 import { getSession } from "@/lib/session";
 import { admin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChannelPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ChannelPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ poll?: string; category?: string }>;
+}) {
   const { slug } = await params;
+  const query = await searchParams;
   const channel = await getChannelBySlug(slug);
   if (!channel || !channel.is_active) notFound();
 
-  const [session, snapshot, owner, followerCount] = await Promise.all([
+  const selectedPollId = query?.poll?.trim() || null;
+  const selectedCategory = query?.category === "movie" || query?.category === "game" ? query.category : null;
+
+  const snapshotPromise = selectedPollId
+    ? getSnapshotByPollId(channel.id, selectedPollId)
+    : selectedCategory
+      ? getLatestActiveSnapshot(channel.id, selectedCategory)
+      : getLatestActiveSnapshot(channel.id).then((active) => active ?? getLatestSnapshot(channel.id));
+
+  const [session, snapshot, owner, followerCount, activePolls] = await Promise.all([
     getSession(),
-    getLatestSnapshot(channel.id),
+    snapshotPromise,
     admin().from("users").select("username, display_name, avatar_url, bio, kick_verified").eq("id", channel.owner_id).maybeSingle().then((r) => r.data),
     admin().from("channel_follows").select("id", { count: "exact", head: true }).eq("channel_id", channel.id).then((r) => r.count ?? 0),
+    getActivePolls(channel.id),
   ]);
 
   // Um canal só é uma sala de streamer se o dono estiver verificado na Kick.
@@ -43,6 +60,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
       initial={snapshot}
       loggedIn={!!session}
       myVote={myVote}
+      pinnedPollId={selectedPollId ?? (selectedCategory ? snapshot?.poll_id ?? null : null)}
+      activePolls={activePolls as Array<{ id: string; title: string; category_type: "movie" | "game" | "mixed"; status: string; created_at: string }>}
     />
   );
 }

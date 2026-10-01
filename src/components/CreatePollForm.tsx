@@ -36,6 +36,7 @@ export function CreatePollForm({ slug, pixReady, onCreated }: { slug: string; pi
       <label className="block text-sm text-mute">Título
         <input required minLength={3} maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="O que vamos assistir hoje?" className={field} />
       </label>
+      <div className="rounded-lg border border-kick/20 bg-kick/5 px-3 py-2 text-sm text-mute">Você pode manter até <b className="text-white">1 votação de filmes</b> e <b className="text-white">1 votação de jogos</b> abertas simultaneamente.</div>
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm text-mute">Categoria
           <select value={cat} onChange={(e) => setCat(e.target.value as typeof cat)} className={field}>
