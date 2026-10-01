@@ -99,3 +99,26 @@ export interface StreamActivity {
   status: string | null;
   created_at: string;
 }
+
+
+export interface SearchUserResult {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  kick_verified: boolean;
+}
+
+export interface SearchChannelResult {
+  id: string;
+  kick_channel_slug: string;
+  owner_id: string;
+  is_active: boolean;
+  owner: SearchUserResult;
+}
+
+export interface SearchResults {
+  query: string;
+  users: SearchUserResult[];
+  channels: SearchChannelResult[];
+}

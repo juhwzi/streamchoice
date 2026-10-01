@@ -63,6 +63,7 @@ src/
 ├── app/
 │   ├── (site)/
 │   │   ├── page.tsx
+│   │   ├── buscar/
 │   │   ├── feed/
 │   │   ├── dashboard/
 │   │   ├── streamer/[slug]/
@@ -72,6 +73,7 @@ src/
 │       ├── auth/kick/
 │       ├── channels/
 │       ├── library/
+│       ├── search/
 │       ├── polls/
 │       ├── suggestions/
 │       ├── votes/
@@ -84,8 +86,23 @@ supabase/
     ├── 0001_schema.sql
     ├── 0002_rls.sql
     ├── 0003_social_profiles.sql
-    └── 0004_library_verification.sql
+    └── 0004_platform_roles_feed.sql
 ```
+
+
+## 🔎 Pesquisa global
+
+O header possui uma busca global para encontrar canais e usuários sem sair da página atual.
+
+- Busca rápida a partir de 2 caracteres.
+- Aceita `username`, `display_name`, slug de canal e termos com `@`.
+- Canais públicos aparecem somente quando estão ativos e o dono está verificado na Kick.
+- Usuários podem ser viewers ou streamers.
+- Enter ou “Ver todos os resultados” abre `/buscar?q=...`.
+- API: `GET /api/search?q=...`.
+- No mobile, o ícone de pesquisa abre diretamente a página completa.
+
+A implementação usa as tabelas existentes `users` e `channels`, portanto não exige uma nova migration no Supabase.
 
 ## Configuração local
 
@@ -103,10 +120,10 @@ Execute no SQL Editor, nesta ordem:
 supabase/migrations/0001_schema.sql
 supabase/migrations/0002_rls.sql
 supabase/migrations/0003_social_profiles.sql
-supabase/migrations/0004_library_verification.sql
+supabase/migrations/0004_platform_roles_feed.sql
 ```
 
-A migration `0004_library_verification.sql` adiciona:
+A migration `0004_platform_roles_feed.sql` adiciona:
 
 - `users.kick_verified`;
 - tabela `streamer_media_library`;

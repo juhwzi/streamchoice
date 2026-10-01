@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { admin } from "@/lib/supabase/admin";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 export async function SiteHeader() {
   const session = await getSession();
@@ -28,12 +29,25 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-ink/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="font-display text-2xl font-extrabold tracking-tight">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
+        <Link href="/" className="shrink-0 font-display text-2xl font-extrabold tracking-tight">
           Stream<span className="text-kick">Choice</span>
         </Link>
 
-        <nav className="flex items-center gap-1.5 text-sm">
+        <GlobalSearch />
+
+        <Link
+          href="/buscar"
+          aria-label="Pesquisar canais e usuários"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line bg-panel text-mute transition hover:border-kick hover:text-kick md:hidden"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="m16 16 4 4" strokeLinecap="round" />
+          </svg>
+        </Link>
+
+        <nav className="ml-auto flex shrink-0 items-center gap-1.5 text-sm">
           {session && profile ? (
             <>
               <Link href="/feed" className="hidden rounded-lg px-3 py-2 text-mute transition hover:bg-panel hover:text-white sm:inline-flex">
